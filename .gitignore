@@ -3,3 +3,4 @@ __pycache__
 *.tmp
 *.trash
 *.txt.gz
+*.log

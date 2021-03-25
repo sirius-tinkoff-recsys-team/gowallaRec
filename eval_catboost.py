@@ -49,7 +49,7 @@ if __name__ == '__main__':
     candidates_dataset['target_pred'] = model.predict_proba(
         candidates_dataset.drop(['userId', 'itemId'], axis=1))[:, 1]
 
-    k = 1
+    k = 20
     catboost_hitrates = []
     for user, df in candidates_dataset.groupby('userId'):
         preds = df.sort_values('target_pred', ascending=False).head(k)['itemId'].values

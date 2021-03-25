@@ -1,5 +1,6 @@
 # LightGCN, TopNModel, TopNPersonalized, TopNNearestModel, iALS
 MODEL: TopNNearestModel
+DATASET: brightkite
 USE_TENSORBOARD: False
 
 NUM_RAT_FOR_ITEM: 5

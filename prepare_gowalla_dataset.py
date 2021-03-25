@@ -16,7 +16,7 @@ if __name__ == '__main__':
         wget.download('https://snap.stanford.edu/data/loc-gowalla_totalCheckins.txt.gz',
                       out=str(dataset_path), bar=print_progressbar)
     gowalla_dataset = pd.read_csv(
-        dataset_path, sep='\t', names=['userId', 'timestamp', 'long', ' lat', 'loc_id'])
+        dataset_path, sep='\t', names=['userId', 'timestamp', 'long', 'lat', 'loc_id'])
     gowalla_dataset['timestamp'] = pd.to_datetime(gowalla_dataset['timestamp']).dt.tz_localize(None)
 
     split_date = pd.to_datetime(config['SPLIT_DATE'])
@@ -70,6 +70,8 @@ if __name__ == '__main__':
 
     gowalla_train.to_csv(dataset_dir / 'gowalla.train', index=None, header=None)
     gowalla_test.to_csv(dataset_dir / 'gowalla.test', index=None, header=None)
+    gowalla_dataset.loc[:, ['loc_id', 'long', 'lat']] \
+        .to_csv(dataset_dir / 'gowalla.locations', index=None, header=None)
 
     print('dataset splits saved')
 
