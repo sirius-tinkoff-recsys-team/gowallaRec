@@ -1,5 +1,7 @@
 # Рекомендации на примере датасета Gowalla
 
+EDA можно посмотреть в ноутбуке [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1SMwCJsS2YFxeANKAdXlwDlxL_IHNt4Hl)
+
 ## Реализованы модели:
 
 - [iALS](https://implicit.readthedocs.io/en/latest/als.html) из библиотеки implicit, основан на матричной фактиризации
