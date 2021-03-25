@@ -24,20 +24,19 @@ class DatasetReader:
 
         self.geo_p = geo_precision
 
-    def get_dataloaders(self,
-                        test_size=0.3):
+    def get_dataloaders(self, test_size=0.3):
         self._filter()
         self.user_encoder, self.loc_id_encoder, self.geo_encoder = self._get_encoders()
         self._encode()
         self.df = self._get_groups()
 
-        train_df, test_df = train_test_split(self.df,
-                                             test_size=test_size)
+        train_df, test_df = train_test_split(self.df, test_size=test_size)
+
         return train_df, test_df
 
     def _filter(self):
-        # self.df.sort_values(by='timestamp',ascending=True,inplace=True)
-        self.df.drop_duplicates(subset=['userId', 'loc_id'], keep='first', inplace=True)
+        self.df.sort_values(by='timestamp', ascending=True, inplace=True)
+        # self.df.drop_duplicates(subset=['userId', 'loc_id'], keep='first', inplace=True)
         # print(self.df.shape)
         # GroupBy item
         temp = self.df.groupby('loc_id').agg({'userId': 'count'}).reset_index()
@@ -76,7 +75,7 @@ class DatasetReader:
     def _get_groups(self):
         data_grouped = self.df.groupby('userId').apply(
             lambda x: sorted(zip(x.loc_id, x.timestamp, x.long, x.lat, x.geo_place),
-                             key=lambda x: x[1])
+                             key=lambda y: y[1])
         ).reset_index()
 
         data_grouped['items'] = data_grouped[0].apply(lambda x: [inter[0] for inter in x])

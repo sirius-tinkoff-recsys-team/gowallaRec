@@ -1,83 +1,51 @@
-import torch
-from torch.nn.utils.rnn import pad_sequence
+import sys
+import metrics
+import haversine
+import pandas as pd
+from loguru import logger
+from config import config
+from dataloader import GowallaTopNDataset
 
 
-def pad_3d_sequence(
-    tokens,
-    max_sent_length: int = None,
-    max_sents: int = None,
-    pad_in_the_end: bool = True
-) -> torch.Tensor:
-    """
-    Perform padding for 3D Tensor
-    (Batch Size x Number of sentences x Number of words in sentences).
-
-    Parameters
-    ----------
-    tokens : `List[List[int]]`, required
-        Nested lists of token indexes with variable
-        number of sentences and number of words in sentence.
-    max_sent_length : `int`, optional (default = `None`)
-        Max number of words in sentence.
-        If `None` number of words in sentence
-        would be determined from passed `tokens`
-        (equals max number of words in sentence per batch).
-    max_sents : `int`, optional (default = `None`)
-        Max number of sentences in one document.
-        If `None` max number of sentences
-        would be determined from passed `tokens`
-        (equals max number of sentences per batch).
-    pad_in_the_end: `bool`, optional (default = `True`)
-        Whether to pad in the end of sequence or beginning.
-
-    Returns
-    -------
-    `torch.Tensor`
-        Padded 3D torch.Tensor.
-
-    Examples:
-    ---------
-        pad_3d_sequence(
-            [[[1, 2, 3], [4, 5]], [[3, 4], [7, 8, 9, 6], [1, 2, 3]]]
-        )
-        tensor([[[1., 2., 3., 0.],
-                 [4., 5., 0., 0.],
-                 [0., 0., 0., 0.]],
-                [[3., 4., 0., 0.],
-                 [7., 8., 9., 6.],
-                 [1., 2., 3., 0.]]])
-    """
-    # Adopted from: https://discuss.pytorch.org/t/nested-list-of-variable-length-to-a-tensor/38699
-    words = max_sent_length if max_sent_length else max([len(row) for batch in tokens for row in batch])
-    sentences = max_sents if max_sents else max([len(batch) for batch in tokens])
-    padded = [
-        batch + [[0] * words] * (sentences - len(batch)) if pad_in_the_end
-        else batch + (sentences - len(batch)) * [[0] * words]
-        for batch in tokens
-    ]
-    padded = torch.Tensor([
-        row + [0] * (words - len(row)) if pad_in_the_end
-        else [0] * (words - len(row)) + row
-        for batch in padded for row in batch
-    ])
-    padded = padded.view(-1, sentences, words)
-    return padded
+def print_progressbar(current, total, width=80):
+    progress_message = "Downloading: %d%% [%d / %d] bytes" % (current / total * 100, current, total)
+    # Don't use print() as it will print in new line every time.
+    sys.stdout.write("\r" + progress_message)
+    sys.stdout.flush()
 
 
-def custom_collate(x):
-    items, distances, geo, target, valid_elem = zip(*x)
+def eval_als_model(model, user_item_data, gowalla_test):
+    def inner(iteration, elapsed):
+        preds = []
+        ground_truth = []
+        n_recommend = max(config['METRICS_REPORT'])
+        test_interactions = gowalla_test.groupby('userId')['loc_id'].apply(list).to_dict()
+        for userId in gowalla_test['userId'].unique():
+            preds.append(
+                list(map(lambda x: x[0], model.recommend(userId, user_item_data, n_recommend))))
+            ground_truth.append(test_interactions[userId])
 
-    items = pad_sequence([torch.Tensor(t[::-1]) for t in items], batch_first=True).flip(1)
-    distances = pad_sequence([torch.Tensor(t[::-1]) for t in distances], batch_first=True).flip(1)
+        logger.info(f'{iteration} iteration:')
+        max_length = max(map(len, metrics.metric_dict.keys())) + max(
+            map(lambda x: len(str(x)), config['METRICS_REPORT']))
+        for metric_name, metric_func in metrics.metric_dict.items():
+            for k in config['METRICS_REPORT']:
+                metric_name_total = f'{metric_name}@{k}'
+                metric_value = metric_func(preds, ground_truth, k).mean()
+                logger.info(f'{metric_name_total: >{max_length + 1}} = {metric_value}')
 
-    geo = pad_sequence([torch.Tensor(t[::-1]) for t in geo], batch_first=True).flip(1)
-    target = pad_sequence([torch.Tensor(t[::-1]) for t in target], batch_first=True).flip(1)
-    valid_elem = torch.Tensor([t for t in valid_elem])
+    return inner
 
-    return {
-        'items': items,
-        'distances': distances,
-        'geo': geo,
-        'target': target,
-        'valid_elem': valid_elem
-    }
+
+def calc_nearest(train_dataset: GowallaTopNDataset, test_dataset: GowallaTopNDataset):
+    temp = pd.concat([train_dataset.df, test_dataset.df]).set_index('loc_id')
+    item_lat = temp['lat'].to_dict()
+    item_long = temp['long'].to_dict()
+    locations = {item: (item_long[item], item_lat[item]) for item in item_lat}
+
+    def inner(item_id, k=20):
+        loc = locations[item_id]
+        distances = [
+            (item, haversine.haversine(loc, location)) for item, location in locations.items()]
+        return list(map(lambda x: x[0], sorted(distances, key=lambda x: x[1])[:k]))
+    return inner

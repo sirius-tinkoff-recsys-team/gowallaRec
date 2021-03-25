@@ -1,8 +1,22 @@
 import torch
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 from loguru import logger
 from metrics import Metrics
+
+
+class TopNModel:
+    def __init__(self, n_tops: int = 20):
+        super().__init__()
+        self.n_tops = n_tops
+
+    def fit(self, loader: pd.DataFrame):
+        for row in loader.iterrows():
+            pass
+
+    def validate(self, loader):
+        pass
 
 
 class BaseModel(torch.nn.Module):

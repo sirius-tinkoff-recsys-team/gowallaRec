@@ -1,45 +1,70 @@
-from config import config
-from models import LSTMModel
-from utils import custom_collate
-from metrics import plot_res_dict
-from torch.utils.data import DataLoader
-from dataloaders import DatasetReader, MyDataset
+import metrics
+import faiss
+import torch
+from loguru import logger
+import numpy as np
+from time import gmtime, strftime
+import pandas as pd
 
 if __name__ == '__main__':
-    exp_results = {}
-    epochs = 20
+    gowalla_train = pd.read_csv('dataset/gowalla.train',
+                                names=['userId', 'timestamp', 'long', 'lat', 'loc_id'])
+    gowalla_test = pd.read_csv('dataset/gowalla.test',
+                               names=['userId', 'timestamp', 'long', 'lat', 'loc_id'])
+    gowalla_dataset = pd.concat([gowalla_train, gowalla_test])
+    print(gowalla_dataset.columns)
+    print(gowalla_dataset['lat'])
 
-    reader = DatasetReader('loc-brightkite_totalCheckins.txt.gz', nrows=None)
-    train_ds, test_ds = reader.get_dataloaders()
+    # current_time = strftime("%Y-%m-%d_%H:%M:%S", gmtime())
+    # logger.add(f'train_{current_time}.log')
+    # for i in range(5):
+    #     logger.info(f'i = {i}')
 
-    train_loader = DataLoader(
-        MyDataset(train_ds, num_items=len(reader.loc_id_encoder)),
-        batch_size=config['TRAIN_BATCH_SIZE'],
-        shuffle=False,
-        collate_fn=custom_collate
-    )
+    # d = 64
+    # embedding_user = torch.nn.Embedding(
+    #     num_embeddings=10000, embedding_dim=d)
+    # embedding_item = torch.nn.Embedding(
+    #     num_embeddings=10000, embedding_dim=d)
+    #
+    # user_emb = embedding_user.weight.detach().numpy()
+    # items_emb = embedding_item.weight.detach().numpy()
+    #
+    # index = faiss.IndexHNSWPQ(d, 4, 32)
+    # print(index.is_trained)
+    # index.train(items_emb)
+    # index.add(items_emb)
+    # print(index.ntotal)
+    # print(index.search(user_emb, 20)[1])
 
-    test_loader = DataLoader(
-        MyDataset(test_ds, num_items=len(reader.loc_id_encoder)),
-        batch_size=config['TEST_BATCH_SIZE'],
-        shuffle=False,
-        collate_fn=custom_collate
-    )
+    # index = faiss.IndexHNSWPQ(d, faiss.ScalarQuantizer.QT_8bit, 32)
+    # index.add(xb)
+    # print(index.search(xq, 20))
 
-    model = LSTMModel(num_items=len(reader.loc_id_encoder),
-                      num_geo=len(reader.geo_encoder),
-                      use_geo=False, device='cpu')
+    # k = 1
+    # rank = [[1, 2, 3]]
+    # ground_truth = [[3, 4, 5]]
+    # print(f'rank: {rank}, ground_truth: {ground_truth}, ap@{k} = {metrics.ap(rank, ground_truth, k=k)}')
+    #
+    # rank = [[1, 2, 3]]
+    # ground_truth = [[1, 4, 5]]
+    # print(f'rank: {rank}, ground_truth: {ground_truth}, ap@{k} = {metrics.ap(rank, ground_truth, k=k)}')
+    #
+    # rank = [[1, 2, 3]]
+    # ground_truth = [[1, 2, 3]]
+    # print(f'rank: {rank}, ground_truth: {ground_truth}, ap@{k} = {metrics.ap(rank, ground_truth, k=k)}')
+    #
+    # rank = [[1, 2, 3]]
+    # ground_truth = [[1, 2, 3, 4, 5]]
+    # print(f'rank: {rank}, ground_truth: {ground_truth}, ap@{k} = {metrics.ap(rank, ground_truth, k=k)}')
 
-    model.set_optimizer()
-
-    model.validate(test_loader)
-
-    epochs_metric = []
-
-    for epoch in range(epochs):
-        model.fit(train_loader)
-        epoch_metric = model.validate(test_loader)
-        epochs_metric.append([epoch_metric[k] for k in epoch_metric.keys()])
-
-    exp_results['lstm_no_geo'] = epochs_metric
-    plot_res_dict(exp_results)
+    # rank = [[2, 3, 1], [8, 4, 1]]
+    # ground_truth = [[1, 2, 3], [1, 4, 3]]
+    # for k in range(1, 11):
+    #     print(f'hitrate@{k} = {metrics.hitrate(rank, ground_truth, k=k)}')
+    #     print(f'precision@{k} = {metrics.precision(rank, ground_truth, k=k)}')
+    #     print(f'recall@{k} = {metrics.recall(rank, ground_truth, k=k)}')
+    #     print(f'ap@{k} = {metrics.ap(rank, ground_truth, k=k)}')
+    #     print(f'map@{k} = {metrics.map(rank, ground_truth, k=k)}')
+    #     print(f'ndcg@{k} = {metrics.ndcg(rank, ground_truth, k=k)}')
+    #     print(f'mrr@{k} = {metrics.mrr(rank, ground_truth, k=k)}')
+    #     print('-----')
